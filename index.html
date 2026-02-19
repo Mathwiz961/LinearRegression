@@ -740,12 +740,17 @@ document.getElementById("btnRun").addEventListener("click", ()=>{
     document.getElementById("kpiR2").textContent = fmt(res.R2);
     document.getElementById("kpiAdjR2").textContent = fmt(res.adjR2);
 
-    if(res.df1 > 0){
-      document.getElementById("kpiF").textContent =
-        `${fmt(res.F)} (df1=${res.df1}, df2=${res.df2}) • p=${fmtP(res.pModel)}`;
-    }else{
-      document.getElementById("kpiF").textContent = "—";
-    }
+if(res.df1 > 0){
+  document.getElementById("kpiF").innerHTML =
+    `
+    <div>${fmt(res.F)} (df1=${res.df1}, df2=${res.df2})</div>
+    <div style="font-size:13px; margin-top:4px;">
+      p-value = ${fmtP(res.pModel)}
+    </div>
+    `;
+}else{
+  document.getElementById("kpiF").textContent = "—";
+}
 
     // Coef table
     ciNote.textContent = `${(100*(1-alpha)).toFixed(1)}% CI using t* = ${fmt(tcrit)} (df=${res.df2})`;
