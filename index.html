@@ -1,0 +1,789 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ERAU Regression (Least Squares) Tool</title>
+
+  <!-- Distribution utilities (t / F / inverse t) -->
+  <script src="https://cdn.jsdelivr.net/npm/jstat@1.9.6/dist/jstat.min.js"></script>
+
+  <style>
+    :root{
+      /* ERAU-ish */
+      --navy1:#003A63;
+      --navy2:#002B4A;
+      --gold:#FFC72C;
+
+      /* UI */
+      --page:#ffffff;
+      --panel:#f5f6f8;
+      --text:#0b1220;
+      --muted:#5b6776;
+
+      --btn:#0b5ea8;
+      --btnHover:#0a4f8c;
+
+      --radius:14px;
+      --shadowSoft:0 8px 18px rgba(0,0,0,.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+
+    html,body{height:100%;}
+    body{
+      margin:0;
+      font-family:var(--sans);
+      color:var(--text);
+      background:linear-gradient(180deg,#ffffff 0%, #fbfbfc 55%, #ffffff 100%);
+    }
+
+    .wrap{
+      max-width:1100px;
+      margin:0 auto;
+      padding:18px 16px 40px;
+    }
+
+    /* Header */
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+      padding:14px 16px;
+      background:linear-gradient(90deg,var(--navy2), var(--navy1));
+      border-radius:18px;
+      box-shadow:var(--shadowSoft);
+    }
+    .titleblock{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width:0;
+    }
+    .apptitle{
+      color:#fff;
+      font-weight:800;
+      letter-spacing:.2px;
+      font-size:18px;
+      line-height:1.1;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .subtitle{
+      color:rgba(255,255,255,.85);
+      font-size:12.5px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .erauOval{
+      flex:0 0 auto;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:10px 14px;
+      border-radius:999px;
+      background:rgba(255,199,44,1); /* 100% opacity */
+      color:var(--navy2);
+      font-weight:800;
+      letter-spacing:.4px;
+      border:1px solid rgba(0,0,0,.08);
+      box-shadow:0 6px 14px rgba(0,0,0,.12);
+      user-select:none;
+    }
+
+    /* Layout */
+    .grid{
+      display:grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap:14px;
+      margin-top:14px;
+    }
+    @media (max-width: 980px){
+      .grid{grid-template-columns:1fr;}
+    }
+
+    .card{
+      background:var(--page);
+      border:1px solid rgba(0,0,0,.08);
+      border-radius:var(--radius);
+      box-shadow:var(--shadowSoft);
+      overflow:hidden;
+    }
+    .cardhdr{
+      padding:12px 14px;
+      background:linear-gradient(90deg,#ffffff, #fbfbfd);
+      border-bottom:1px solid rgba(0,0,0,.07);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .cardhdr h2{
+      margin:0;
+      font-size:14px;
+      letter-spacing:.2px;
+    }
+    .cardbody{ padding:14px; }
+
+    textarea{
+      width:100%;
+      min-height:220px;
+      resize:vertical;
+      font-family:var(--mono);
+      font-size:12.5px;
+      line-height:1.35;
+      padding:12px;
+      border-radius:12px;
+      border:1px solid rgba(0,0,0,.18);
+      background:#fff;
+      outline:none;
+    }
+    textarea:focus{
+      border-color:rgba(11,94,168,.55);
+      box-shadow:0 0 0 3px rgba(11,94,168,.12);
+    }
+
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:flex-end;
+      margin-top:10px;
+    }
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      min-width:160px;
+      flex:1 1 180px;
+    }
+    label{
+      font-size:12px;
+      color:var(--muted);
+      font-weight:650;
+    }
+    select, input[type="number"], input[type="text"]{
+      padding:10px 10px;
+      border-radius:12px;
+      border:1px solid rgba(0,0,0,.18);
+      background:#fff;
+      outline:none;
+      font-size:13px;
+    }
+    select:focus, input:focus{
+      border-color:rgba(11,94,168,.55);
+      box-shadow:0 0 0 3px rgba(11,94,168,.12);
+    }
+
+    .btnrow{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:12px;
+    }
+    button{
+      appearance:none;
+      border:none;
+      border-radius:12px;
+      padding:10px 12px;
+      font-weight:750;
+      letter-spacing:.2px;
+      cursor:pointer;
+      background:var(--btn);
+      color:#fff;
+      box-shadow:0 10px 18px rgba(11,94,168,.18);
+    }
+    button:hover{ background:var(--btnHover); }
+    .btnGhost{
+      background:#fff;
+      color:var(--navy2);
+      border:1px solid rgba(0,0,0,.14);
+      box-shadow:none;
+    }
+    .btnGhost:hover{ background:#f3f6fb; }
+
+    .note{
+      margin-top:10px;
+      font-size:12.5px;
+      color:var(--muted);
+      line-height:1.35;
+    }
+
+    /* Output blocks */
+    .kpi{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap:10px;
+    }
+    .kpiBox{
+      border:1px solid rgba(0,0,0,.10);
+      border-radius:12px;
+      background:linear-gradient(180deg,#ffffff, #fafbff);
+      padding:10px 12px;
+    }
+    .kpiLab{
+      font-size:11.5px;
+      color:var(--muted);
+      font-weight:700;
+    }
+    .kpiVal{
+      margin-top:4px;
+      font-size:16px;
+      font-weight:850;
+      color:var(--navy2);
+    }
+
+    .hr{ height:1px; background:rgba(0,0,0,.08); margin:14px 0; }
+
+    table{
+      width:100%;
+      border-collapse:separate;
+      border-spacing:0;
+      overflow:hidden;
+      border-radius:12px;
+      border:1px solid rgba(0,0,0,.10);
+      font-size:12.5px;
+    }
+    th, td{
+      padding:9px 10px;
+      border-bottom:1px solid rgba(0,0,0,.08);
+      vertical-align:top;
+    }
+    th{
+      background:linear-gradient(90deg, rgba(255,199,44,.35), rgba(255,199,44,.12));
+      color:var(--navy2);
+      font-weight:850;
+      text-align:left;
+      position:sticky;
+      top:0;
+      z-index:1;
+    }
+    tr:last-child td{ border-bottom:none; }
+    td.num{ text-align:right; font-variant-numeric: tabular-nums; font-family:var(--mono); }
+    .warn{
+      margin-top:10px;
+      padding:10px 12px;
+      border-radius:12px;
+      background:rgba(255,199,44,.18);
+      border:1px solid rgba(255,199,44,.45);
+      color:#3a2a00;
+      font-size:12.5px;
+    }
+    .err{
+      margin-top:10px;
+      padding:10px 12px;
+      border-radius:12px;
+      background:rgba(212,25,19,.10);
+      border:1px solid rgba(212,25,19,.25);
+      color:#4a0a07;
+      font-size:12.5px;
+    }
+    .small{
+      font-size:11.5px;
+      color:var(--muted);
+    }
+
+    /* multiselect */
+    .multi{
+      height:132px;
+      padding:6px;
+      border-radius:12px;
+      border:1px solid rgba(0,0,0,.18);
+      background:#fff;
+      outline:none;
+      font-size:13px;
+    }
+    .multi:focus{
+      border-color:rgba(11,94,168,.55);
+      box-shadow:0 0 0 3px rgba(11,94,168,.12);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="titleblock">
+        <div class="apptitle">Least Squares Regression Tool</div>
+        <div class="subtitle">Multiple Linear Regression (OLS) • Model + Coefficient Tests • Coefficient Confidence Intervals</div>
+      </div>
+      <div class="erauOval">Embry-Riddle</div>
+    </div>
+
+    <div class="grid">
+      <!-- INPUT -->
+      <div class="card">
+        <div class="cardhdr">
+          <h2>Data Input</h2>
+          <span class="small">Paste CSV/TSV with headers</span>
+        </div>
+        <div class="cardbody">
+          <textarea id="dataBox" spellcheck="false" placeholder="Example:
+Y,X1,X2
+12,1.2,5
+9,0.9,4
+..."></textarea>
+
+          <div class="row">
+            <div class="field">
+              <label for="depSelect">Dependent (Y)</label>
+              <select id="depSelect"></select>
+            </div>
+            <div class="field" style="flex:2 1 260px;">
+              <label for="indSelect">Independent (X) — select one or more</label>
+              <select id="indSelect" class="multi" multiple></select>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label for="ciLevel">Coefficient CI Level (%)</label>
+              <input id="ciLevel" type="number" min="50" max="99.9" step="0.1" value="95" />
+            </div>
+            <div class="field">
+              <label for="alphaHint">Alpha</label>
+              <input id="alphaHint" type="text" value="(auto from CI)" disabled />
+            </div>
+          </div>
+
+          <div class="btnrow">
+            <button id="btnParse" type="button">Parse Columns</button>
+            <button id="btnRun" type="button">Run Regression</button>
+            <button id="btnSample" type="button" class="btnGhost">Load Sample Data</button>
+            <button id="btnClear" type="button" class="btnGhost">Clear</button>
+          </div>
+
+          <div class="note">
+            Notes:
+            <ul>
+              <li>Rows with missing/non-numeric values in Y or selected X’s are automatically excluded.</li>
+              <li>Intercept is included by default.</li>
+              <li>p-values are two-sided for coefficients; model p-value is for the overall F test.</li>
+            </ul>
+          </div>
+
+          <div id="msg"></div>
+        </div>
+      </div>
+
+      <!-- OUTPUT -->
+      <div class="card">
+        <div class="cardhdr">
+          <h2>Results</h2>
+          <span class="small" id="nInfo"></span>
+        </div>
+        <div class="cardbody">
+          <div class="kpi" id="kpis" style="display:none;">
+            <div class="kpiBox">
+              <div class="kpiLab">R</div>
+              <div class="kpiVal" id="kpiR">—</div>
+            </div>
+            <div class="kpiBox">
+              <div class="kpiLab">R²</div>
+              <div class="kpiVal" id="kpiR2">—</div>
+            </div>
+            <div class="kpiBox">
+              <div class="kpiLab">Adjusted R²</div>
+              <div class="kpiVal" id="kpiAdjR2">—</div>
+            </div>
+            <div class="kpiBox">
+              <div class="kpiLab">Model F (df1, df2) • p-value</div>
+              <div class="kpiVal" id="kpiF">—</div>
+            </div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div id="coefWrap" style="display:none;">
+            <div style="display:flex; align-items:baseline; justify-content:space-between; gap:10px;">
+              <div style="font-weight:850; color:var(--navy2);">Coefficients</div>
+              <div class="small" id="ciNote"></div>
+            </div>
+            <div style="height:10px;"></div>
+            <div style="overflow:auto; max-height:360px;">
+              <table id="coefTable">
+                <thead>
+                  <tr>
+                    <th>Term</th>
+                    <th class="num">Estimate</th>
+                    <th class="num">Std. Error</th>
+                    <th class="num">t</th>
+                    <th class="num">p-value</th>
+                    <th class="num">CI Low</th>
+                    <th class="num">CI High</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="outMsg"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ---------- Helpers: parsing ---------- */
+function detectDelimiter(text){
+  // crude but effective: compare comma vs tab vs semicolon counts in first non-empty line
+  const lines = text.split(/\r?\n/).map(s=>s.trim()).filter(s=>s.length>0);
+  if(!lines.length) return ",";
+  const line = lines[0];
+  const counts = [
+    {d:",", c:(line.match(/,/g)||[]).length},
+    {d:"\t", c:(line.match(/\t/g)||[]).length},
+    {d:";", c:(line.match(/;/g)||[]).length},
+    {d:"|", c:(line.match(/\|/g)||[]).length}
+  ].sort((a,b)=>b.c-a.c);
+  return counts[0].c>0 ? counts[0].d : ",";
+}
+
+function parseTable(text){
+  const delim = detectDelimiter(text);
+  const rawLines = text.split(/\r?\n/).map(s=>s.trim()).filter(s=>s.length>0);
+  if(rawLines.length < 2) throw new Error("Please include a header row and at least one data row.");
+  const headers = rawLines[0].split(delim).map(h=>h.trim()).filter(h=>h.length>0);
+  if(headers.length < 2) throw new Error("Need at least 2 columns (Y and at least one X).");
+
+  const rows = [];
+  for(let i=1;i<rawLines.length;i++){
+    const parts = rawLines[i].split(delim);
+    if(parts.length === 1 && parts[0].trim()==="") continue;
+    const row = {};
+    for(let j=0;j<headers.length;j++){
+      row[headers[j]] = (parts[j] ?? "").trim();
+    }
+    rows.push(row);
+  }
+  return {headers, rows};
+}
+
+/* ---------- Linear algebra: matrix ops ---------- */
+function transpose(A){
+  const m=A.length, n=A[0].length;
+  const AT=Array.from({length:n}, ()=>Array(m).fill(0));
+  for(let i=0;i<m;i++) for(let j=0;j<n;j++) AT[j][i]=A[i][j];
+  return AT;
+}
+function matMul(A,B){
+  const m=A.length, n=A[0].length, p=B[0].length;
+  const out=Array.from({length:m}, ()=>Array(p).fill(0));
+  for(let i=0;i<m;i++){
+    for(let k=0;k<p;k++){
+      let s=0;
+      for(let j=0;j<n;j++) s += A[i][j]*B[j][k];
+      out[i][k]=s;
+    }
+  }
+  return out;
+}
+function matVecMul(A,v){
+  const m=A.length, n=A[0].length;
+  const out=Array(m).fill(0);
+  for(let i=0;i<m;i++){
+    let s=0;
+    for(let j=0;j<n;j++) s += A[i][j]*v[j];
+    out[i]=s;
+  }
+  return out;
+}
+function dot(a,b){
+  let s=0; for(let i=0;i<a.length;i++) s+=a[i]*b[i]; return s;
+}
+function gaussJordanInverse(M){
+  const n=M.length;
+  // make augmented [M | I]
+  const A = M.map((row,i)=> row.slice().concat(Array.from({length:n}, (_,j)=> (i===j?1:0))));
+  const N2 = 2*n;
+
+  for(let col=0; col<n; col++){
+    // pivot
+    let pivotRow = col;
+    for(let r=col+1; r<n; r++){
+      if(Math.abs(A[r][col]) > Math.abs(A[pivotRow][col])) pivotRow = r;
+    }
+    if(Math.abs(A[pivotRow][col]) < 1e-12) throw new Error("Matrix is singular or nearly singular (check for collinearity).");
+    if(pivotRow !== col){
+      const tmp=A[col]; A[col]=A[pivotRow]; A[pivotRow]=tmp;
+    }
+    // normalize pivot row
+    const piv = A[col][col];
+    for(let c=0;c<N2;c++) A[col][c] /= piv;
+    // eliminate
+    for(let r=0;r<n;r++){
+      if(r===col) continue;
+      const factor = A[r][col];
+      for(let c=0;c<N2;c++) A[r][c] -= factor*A[col][c];
+    }
+  }
+  // extract inverse
+  const inv = A.map(row=> row.slice(n));
+  return inv;
+}
+
+function fmt(x){
+  if(!isFinite(x)) return "—";
+  // compact scientific for very small/large
+  const ax=Math.abs(x);
+  if(ax!==0 && (ax<1e-4 || ax>=1e6)) return x.toExponential(4);
+  return (Math.round(x*1e6)/1e6).toString();
+}
+function fmtP(p){
+  if(!isFinite(p)) return "—";
+  if(p < 1e-4) return "<0.0001";
+  return (Math.round(p*1e6)/1e6).toFixed(6).replace(/0+$/,'').replace(/\.$/,'');
+}
+
+/* ---------- OLS ---------- */
+function runOLS(y, X){
+  // X is n x p (includes intercept col if provided)
+  const n = y.length;
+  const p = X[0].length;
+
+  const XT = transpose(X);
+  const XTX = matMul(XT, X);                 // p x p
+  const XTy = matMul(XT, y.map(v=>[v]));     // p x 1
+
+  const XTX_inv = gaussJordanInverse(XTX);
+  const betaMat = matMul(XTX_inv, XTy);      // p x 1
+  const beta = betaMat.map(r=>r[0]);
+
+  const yhat = matVecMul(X, beta);
+  const ybar = y.reduce((a,b)=>a+b,0)/n;
+
+  let SSE=0, SST=0;
+  for(let i=0;i<n;i++){
+    SSE += (y[i]-yhat[i])**2;
+    SST += (y[i]-ybar)**2;
+  }
+  const SSR = SST - SSE;
+
+  const df2 = n - p;        // residual df
+  if(df2 <= 0) throw new Error("Not enough rows for the number of predictors (need n > p).");
+
+  const MSE = SSE / df2;
+
+  // Var(beta) = MSE * (X'X)^-1
+  const varcov = XTX_inv.map(row => row.map(v => v*MSE));
+  const se = Array(p).fill(0).map((_,j)=> Math.sqrt(Math.max(varcov[j][j],0)));
+
+  const tstats = beta.map((b,j)=> b / se[j]);
+  const pvals = tstats.map(t => 2*(1 - jStat.studentt.cdf(Math.abs(t), df2)));
+
+  const R2 = (SST===0) ? 1 : (SSR / SST);
+  const R = Math.sqrt(Math.max(0,R2)); // for multiple regression, take nonnegative
+  const adjR2 = 1 - ( (SSE/df2) / (SST/(n-1)) );
+
+  // Overall F test: H0 all slopes = 0 (excluding intercept)
+  const df1 = p - 1;
+  let F = NaN, pModel = NaN;
+  if(df1 > 0){
+    const MSR = SSR / df1;
+    F = MSR / MSE;
+    pModel = 1 - jStat.centralF.cdf(F, df1, df2);
+  }
+
+  return {n,p, beta,se,tstats,pvals, SSE,SST,SSR,MSE, df1,df2, F,pModel, R,R2,adjR2};
+}
+
+/* ---------- UI wiring ---------- */
+const dataBox = document.getElementById("dataBox");
+const depSelect = document.getElementById("depSelect");
+const indSelect = document.getElementById("indSelect");
+const ciLevel = document.getElementById("ciLevel");
+const alphaHint = document.getElementById("alphaHint");
+const msg = document.getElementById("msg");
+const outMsg = document.getElementById("outMsg");
+
+const kpis = document.getElementById("kpis");
+const nInfo = document.getElementById("nInfo");
+const coefWrap = document.getElementById("coefWrap");
+const coefTableBody = document.querySelector("#coefTable tbody");
+const ciNote = document.getElementById("ciNote");
+
+function setMsg(html, cls){
+  msg.innerHTML = html ? `<div class="${cls}">${html}</div>` : "";
+}
+function setOutMsg(html, cls){
+  outMsg.innerHTML = html ? `<div class="${cls}">${html}</div>` : "";
+}
+function clearSelect(sel){
+  while(sel.firstChild) sel.removeChild(sel.firstChild);
+}
+function fillColumns(headers){
+  clearSelect(depSelect);
+  clearSelect(indSelect);
+
+  headers.forEach((h,i)=>{
+    const o1=document.createElement("option");
+    o1.value=h; o1.textContent=h;
+    depSelect.appendChild(o1);
+
+    const o2=document.createElement("option");
+    o2.value=h; o2.textContent=h;
+    indSelect.appendChild(o2);
+  });
+
+  // default: first col as Y, rest as X
+  depSelect.selectedIndex = 0;
+  for(let i=1;i<headers.length;i++) indSelect.options[i].selected = true;
+
+  setMsg(`Detected <b>${headers.length}</b> columns. Choose Y and X variables, then run regression.`, "warn");
+}
+
+function getSelectedX(){
+  return Array.from(indSelect.selectedOptions).map(o=>o.value);
+}
+
+function computeAlphaFromCI(){
+  const level = parseFloat(ciLevel.value);
+  if(!isFinite(level) || level<=0 || level>=100) return NaN;
+  const alpha = 1 - (level/100);
+  alphaHint.value = alpha.toFixed(4);
+  return alpha;
+}
+ciLevel.addEventListener("input", computeAlphaFromCI);
+computeAlphaFromCI();
+
+document.getElementById("btnParse").addEventListener("click", ()=>{
+  try{
+    setMsg("", "");
+    const t = parseTable(dataBox.value);
+    fillColumns(t.headers);
+  }catch(e){
+    setMsg(e.message, "err");
+  }
+});
+
+document.getElementById("btnSample").addEventListener("click", ()=>{
+  // Simple aircraft-ish flavored sample
+  dataBox.value =
+`FuelBurn,Payload,Distance,Headwind
+820,1200,450,15
+790,1150,430,10
+910,1400,520,22
+870,1300,480,18
+760,1050,410,8
+950,1500,560,25
+880,1350,500,20
+800,1100,440,12
+920,1450,540,24
+780,1080,420,9
+860,1280,470,16
+940,1480,555,26`;
+  setMsg("Sample data loaded. Click <b>Parse Columns</b>, then <b>Run Regression</b>.", "warn");
+});
+
+document.getElementById("btnClear").addEventListener("click", ()=>{
+  dataBox.value="";
+  clearSelect(depSelect);
+  clearSelect(indSelect);
+  setMsg("", "");
+  setOutMsg("", "");
+  kpis.style.display="none";
+  coefWrap.style.display="none";
+  nInfo.textContent="";
+});
+
+document.getElementById("btnRun").addEventListener("click", ()=>{
+  try{
+    setOutMsg("", "");
+    setMsg("", "");
+
+    const alpha = computeAlphaFromCI();
+    if(!isFinite(alpha)) throw new Error("Enter a valid CI level (e.g., 95).");
+
+    const {headers, rows} = parseTable(dataBox.value);
+    if(!depSelect.options.length) fillColumns(headers);
+
+    const yName = depSelect.value;
+    const xNames = getSelectedX().filter(x=>x!==yName);
+
+    if(!yName) throw new Error("Select a dependent variable (Y).");
+    if(xNames.length < 1) throw new Error("Select at least one independent variable (X).");
+
+    // Build numeric dataset, drop bad rows
+    const y=[], Xraw=[];
+    let dropped=0;
+    for(const r of rows){
+      const yv = parseFloat(r[yName]);
+      const xv = xNames.map(nm=>parseFloat(r[nm]));
+      if(!isFinite(yv) || xv.some(v=>!isFinite(v))){
+        dropped++;
+        continue;
+      }
+      y.push(yv);
+      Xraw.push(xv);
+    }
+
+    if(y.length < 3) throw new Error("Not enough usable rows after removing missing/non-numeric values.");
+
+    // X with intercept
+    const X = Xraw.map(row => [1, ...row]);
+    const termNames = ["Intercept", ...xNames];
+
+    const res = runOLS(y, X);
+
+    // CI t-critical
+    const tcrit = jStat.studentt.inv(1 - alpha/2, res.df2);
+
+    // KPIs
+    kpis.style.display="";
+    coefWrap.style.display="";
+    nInfo.textContent = `n = ${res.n} (dropped ${dropped}), predictors = ${xNames.length}`;
+
+    document.getElementById("kpiR").textContent = fmt(res.R);
+    document.getElementById("kpiR2").textContent = fmt(res.R2);
+    document.getElementById("kpiAdjR2").textContent = fmt(res.adjR2);
+
+    if(res.df1 > 0){
+      document.getElementById("kpiF").textContent =
+        `${fmt(res.F)} (df1=${res.df1}, df2=${res.df2}) • p=${fmtP(res.pModel)}`;
+    }else{
+      document.getElementById("kpiF").textContent = "—";
+    }
+
+    // Coef table
+    ciNote.textContent = `${(100*(1-alpha)).toFixed(1)}% CI using t* = ${fmt(tcrit)} (df=${res.df2})`;
+
+    coefTableBody.innerHTML = "";
+    for(let j=0;j<res.p;j++){
+      const b = res.beta[j], se = res.se[j], t = res.tstats[j], p = res.pvals[j];
+      const lo = b - tcrit*se;
+      const hi = b + tcrit*se;
+
+      const tr=document.createElement("tr");
+      tr.innerHTML = `
+        <td style="font-weight:750;">${termNames[j] ?? ("X"+j)}</td>
+        <td class="num">${fmt(b)}</td>
+        <td class="num">${fmt(se)}</td>
+        <td class="num">${fmt(t)}</td>
+        <td class="num">${fmtP(p)}</td>
+        <td class="num">${fmt(lo)}</td>
+        <td class="num">${fmt(hi)}</td>
+      `;
+      coefTableBody.appendChild(tr);
+    }
+
+    // Warnings
+    if(dropped>0){
+      setOutMsg(`Removed ${dropped} row(s) due to missing/non-numeric values in Y or selected X variables.`, "warn");
+    }else{
+      setOutMsg("", "");
+    }
+
+  }catch(e){
+    kpis.style.display="none";
+    coefWrap.style.display="none";
+    nInfo.textContent="";
+    setOutMsg(e.message, "err");
+  }
+});
+</script>
+</body>
+</html>
+
