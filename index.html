@@ -1059,7 +1059,7 @@ if(res.df1 > 0){
 
 document.getElementById("eqWrap").style.display="";
 
-let eq = "ŷ = " + fmt(res.beta[0]);
+let eq = "ŷ = " + fmt(res.beta[0]).toFixed(2);
 
 for(let i=1;i<res.beta.length;i++){
   const sign = res.beta[i] >= 0 ? " + " : " - ";
