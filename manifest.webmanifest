@@ -2,11 +2,12 @@
   "name": "ERAU Regression Tool",
   "short_name": "Regression",
   "description": "Least squares regression tool with ERAU branding.",
+
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#003A63",
+  "theme_color": "#03539E",
   "icons": [
     {
       "src": "icon-192.png",
@@ -16,7 +17,8 @@
     {
       "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
