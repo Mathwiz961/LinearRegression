@@ -1059,11 +1059,11 @@ if(res.df1 > 0){
 
 document.getElementById("eqWrap").style.display="";
 
-let eq = "ŷ = " + fmt(res.beta[0]).toFixed(2);
+let eq = "ŷ = " + res.beta[0].toFixed(2);
 
 for(let i=1;i<res.beta.length;i++){
   const sign = res.beta[i] >= 0 ? " + " : " - ";
-  eq += sign + fmt(Math.abs(res.beta[i])) + "X" + i;
+  eq += sign + Math.abs(res.beta[i]).toFixed(2) + "X" + i;
 }
 
 document.getElementById("regEquation").textContent = eq;
