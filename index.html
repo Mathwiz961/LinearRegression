@@ -1063,10 +1063,10 @@ let eq = "ŷ = " + res.beta[0].toFixed(2);
 
 for(let i=1;i<res.beta.length;i++){
   const sign = res.beta[i] >= 0 ? " + " : " - ";
-  eq += sign + Math.abs(res.beta[i]).toFixed(2) + "X<sub>" + i + "</sub>";
+  eq += sign + Math.abs(res.beta[i]).toFixed(2) + "X" + String(i).replace(/[0-9]/g, digit => "₀₁₂₃₄₅₆₇₈₉"[Number(digit)]);
 }
 
-document.getElementById("regEquation").innerHTML = eq;
+document.getElementById("regEquation").textContent = eq;
 
 /* ---------- Store coefficients ---------- */
 
