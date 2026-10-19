@@ -359,6 +359,13 @@
     font-size:.88rem;
   }
 
+  .plot-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px;}
+  .plot-card{background:#fff;border:1px solid var(--input-border);border-radius:18px;padding:12px;min-width:0;}
+  .plot-card svg{display:block;width:100%;height:auto;}
+  .plot-title{font-weight:800;font-size:.9rem;margin-bottom:6px;overflow-wrap:anywhere;}
+  .plot-section summary{cursor:pointer;font-weight:800;color:var(--navy-dark);padding:12px 0;}
+  @media(max-width:700px){.plot-grid{grid-template-columns:1fr;}}
+
   .small{
     font-size:.82rem;
     color:var(--muted);
@@ -695,6 +702,15 @@ Notes
 </div>
 
 
+<div id="plotWrap" style="display:none;margin-top:20px;">
+  <div class="hr"></div>
+  <details class="plot-section" open>
+    <summary>Scatterplots and Simple Regression Trendlines</summary>
+    <p class="small">Each chart shows Y against one predictor. The trendline is a separate simple least-squares regression, not the predictor's adjusted coefficient in the multiple regression model.</p>
+    <div id="plotGrid" class="plot-grid"></div>
+  </details>
+</div>
+
 <div id="outMsg"></div>
 
 </div>
@@ -817,6 +833,51 @@ function fmtP(p){
   if(!isFinite(p)) return "—";
   if(p < 1e-4) return "<0.0001";
   return (Math.round(p*1e6)/1e6).toFixed(6).replace(/0+$/,'').replace(/\.$/,'');
+}
+
+/* ---------- Scatterplots: SVG, no external chart library ---------- */
+function escapeHTML(value){
+  return String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function renderScatterplots(y, Xraw, yName, xNames){
+  const grid = document.getElementById('plotGrid');
+  grid.innerHTML = '';
+  const W=420, H=300, L=64, R=18, T=22, B=58;
+  const pw=W-L-R, ph=H-T-B;
+  xNames.forEach((name,j)=>{
+    const xs=Xraw.map(row=>row[j]);
+    const n=y.length;
+    const xbar=xs.reduce((a,b)=>a+b,0)/n;
+    const ybar=y.reduce((a,b)=>a+b,0)/n;
+    let sxx=0,sxy=0;
+    for(let i=0;i<n;i++){sxx+=(xs[i]-xbar)**2;sxy+=(xs[i]-xbar)*(y[i]-ybar);}
+    const slope=sxx>1e-12?sxy/sxx:null;
+    const intercept=slope===null?null:ybar-slope*xbar;
+    function limits(a){let lo=Math.min(...a),hi=Math.max(...a);if(lo===hi){const pad=Math.abs(lo)*.05||1;return [lo-pad,hi+pad];}const pad=(hi-lo)*.07;return [lo-pad,hi+pad];}
+    const [xmin,xmax]=limits(xs),[ymin,ymax]=limits(y);
+    const sx=x=>L+(x-xmin)/(xmax-xmin)*pw;
+    const sy=v=>T+ph-(v-ymin)/(ymax-ymin)*ph;
+    const num=v=>Number(v.toPrecision(4)).toString();
+    let svg=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Scatterplot of ${escapeHTML(yName)} versus ${escapeHTML(name)} with simple regression trendline">`;
+    for(let k=0;k<=4;k++){
+      const xx=L+pw*k/4, yy=T+ph*k/4;
+      svg+=`<line x1="${xx}" y1="${T}" x2="${xx}" y2="${T+ph}" stroke="#e7edf4"/>`;
+      svg+=`<line x1="${L}" y1="${yy}" x2="${L+pw}" y2="${yy}" stroke="#e7edf4"/>`;
+      svg+=`<text x="${xx}" y="${T+ph+17}" font-size="11" text-anchor="middle" fill="#5b6675">${num(xmin+(xmax-xmin)*k/4)}</text>`;
+      svg+=`<text x="${L-8}" y="${yy+4}" font-size="11" text-anchor="end" fill="#5b6675">${num(ymax-(ymax-ymin)*k/4)}</text>`;
+    }
+    svg+=`<line x1="${L}" y1="${T}" x2="${L}" y2="${T+ph}" stroke="#5b6675"/><line x1="${L}" y1="${T+ph}" x2="${L+pw}" y2="${T+ph}" stroke="#5b6675"/>`;
+    if(slope!==null){
+      svg+=`<line x1="${sx(xmin)}" y1="${sy(intercept+slope*xmin)}" x2="${sx(xmax)}" y2="${sy(intercept+slope*xmax)}" stroke="#c87917" stroke-width="2.5"/>`;
+    }
+    xs.forEach((x,i)=>{svg+=`<circle cx="${sx(x)}" cy="${sy(y[i])}" r="3.6" fill="#0b5ea8" fill-opacity=".78"><title>${escapeHTML(name)}: ${x}; ${escapeHTML(yName)}: ${y[i]}</title></circle>`;});
+    svg+=`<text x="${L+pw/2}" y="${H-9}" font-size="12" text-anchor="middle" fill="#122033">${escapeHTML(name)}</text>`;
+    svg+=`<text transform="translate(14 ${T+ph/2}) rotate(-90)" font-size="12" text-anchor="middle" fill="#122033">${escapeHTML(yName)}</text></svg>`;
+    const card=document.createElement('div');card.className='plot-card';
+    card.innerHTML=`<div class="plot-title">${escapeHTML(yName)} vs. ${escapeHTML(name)}</div>${svg}<div class="small">${slope===null?'Trendline unavailable (no variation in X).':'Orange: simple regression trendline · Blue: observations'}</div>`;
+    grid.appendChild(card);
+  });
+  document.getElementById('plotWrap').style.display='';
 }
 
 /* ---------- OLS ---------- */
@@ -968,6 +1029,8 @@ document.getElementById("btnClear").addEventListener("click", ()=>{
   kpis.style.display="none";
   coefWrap.style.display="none";
   nInfo.textContent="";
+  document.getElementById("eqWrap").style.display="none";
+  document.getElementById("plotWrap").style.display="none";
 });
 
 document.getElementById("btnRun").addEventListener("click", ()=>{
@@ -1093,6 +1156,8 @@ predictInputs.appendChild(div);
 });
 
     
+    renderScatterplots(y, Xraw, yName, xNames);
+
     // Warnings
     if(dropped>0){
       setOutMsg(`Removed ${dropped} row(s) due to missing/non-numeric values in Y or selected X variables.`, "warn");
@@ -1104,6 +1169,8 @@ predictInputs.appendChild(div);
     kpis.style.display="none";
     coefWrap.style.display="none";
     nInfo.textContent="";
+    document.getElementById("eqWrap").style.display="none";
+    document.getElementById("plotWrap").style.display="none";
     setOutMsg(e.message, "err");
   }
 });
